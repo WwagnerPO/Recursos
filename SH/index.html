@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<!-- saved from url=(0059)https://indify.co/widgets/live/gallery/pU8hsgwi0VSmAcZFnB66 -->
+<html><script async="" src="./index_files/gtm.js.descarga"></script><script async="" src="./index_files/analytics.js.descarga"></script><script>
+    window[Symbol.for('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')] = new (class PostClient {
+    constructor(name, destination) {
+        this.name = name;
+        this.destination = destination;
+        this.serverListeners = {};
+        this.bgRequestsListeners = {};
+        this.bgEventsListeners = {};
+        window.addEventListener('message', (message) => {
+            const data = message.data;
+            const isNotForMe = !(data.destination && data.destination === this.name);
+            const hasNotEventProp = !data.event;
+            if (isNotForMe || hasNotEventProp) {
+                return;
+            }
+            if (data.event === 'MARIO_POST_SERVER__BG_RESPONSE') {
+                const response = data.args;
+                if (this.hasBgRequestListener(response.requestId)) {
+                    try {
+                        this.bgRequestsListeners[response.requestId](response.response);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                    delete this.bgRequestsListeners[response.requestId];
+                }
+            }
+            else if (data.event === 'MARIO_POST_SERVER__BG_EVENT') {
+                const response = data.args;
+                if (this.hasBgEventListener(response.event)) {
+                    try {
+                        this.bgEventsListeners[data.id](response.payload);
+                    }
+                    catch (e) {
+                        console.log(e);
+                    }
+                }
+            }
+            else if (this.hasServerListener(data.event)) {
+                try {
+                    this.serverListeners[data.event](data.args);
+                }
+                catch (e) {
+                    console.log(e);
+                }
+            }
+            else {
+                console.log(`event not handled: ${data.event}`);
+            }
+        });
+    }
+    emitToServer(event, args) {
+        const id = this.generateUIID();
+        const message = {
+            args,
+            destination: this.destination,
+            event,
+            id,
+        };
+        window.postMessage(message, location.origin);
+        return id;
+    }
+    emitToBg(bgEventName, args) {
+        const requestId = this.generateUIID();
+        const request = { bgEventName, requestId, args };
+        this.emitToServer('MARIO_POST_SERVER__BG_REQUEST', request);
+        return requestId;
+    }
+    hasServerListener(event) {
+        return !!this.serverListeners[event];
+    }
+    hasBgRequestListener(requestId) {
+        return !!this.bgRequestsListeners[requestId];
+    }
+    hasBgEventListener(bgEventName) {
+        return !!this.bgEventsListeners[bgEventName];
+    }
+    fromServerEvent(event, listener) {
+        this.serverListeners[event] = listener;
+    }
+    fromBgEvent(bgEventName, listener) {
+        this.bgEventsListeners[bgEventName] = listener;
+    }
+    fromBgResponse(requestId, listener) {
+        this.bgRequestsListeners[requestId] = listener;
+    }
+    generateUIID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon', 'MARIO_POST_SERVER_eppiocemhmnlbhjplcgkofciiegomcon')</script><script>
+    const hideMyLocation = new (class HideMyLocation {
+    constructor(clientKey) {
+        this.clientKey = clientKey;
+        this.watchIDs = {};
+        this.client = window[Symbol.for(clientKey)];
+        const getCurrentPosition = navigator.geolocation.getCurrentPosition;
+        const watchPosition = navigator.geolocation.watchPosition;
+        const clearWatch = navigator.geolocation.clearWatch;
+        const self = this;
+        navigator.geolocation.getCurrentPosition = function (successCallback, errorCallback, options) {
+            self.handle(getCurrentPosition, 'GET', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.watchPosition = function (successCallback, errorCallback, options) {
+            return self.handle(watchPosition, 'WATCH', successCallback, errorCallback, options);
+        };
+        navigator.geolocation.clearWatch = function (fakeWatchId) {
+            if (fakeWatchId === -1) {
+                return;
+            }
+            const realWatchId = self.watchIDs[fakeWatchId];
+            delete self.watchIDs[fakeWatchId];
+            return clearWatch.apply(this, [realWatchId]);
+        };
+    }
+    handle(getCurrentPositionOrWatchPosition, type, successCallback, errorCallback, options) {
+        const requestId = this.client.emitToBg('HIDE_MY_LOCATION__GET_LOCATION');
+        let fakeWatchId = this.getRandomInt(0, 100000);
+        this.client.fromBgResponse(requestId, (response) => {
+            if (response.enabled) {
+                if (response.status === 'SUCCESS') {
+                    const position = this.map(response);
+                    successCallback(position);
+                }
+                else {
+                    const error = this.errorObj();
+                    errorCallback(error);
+                    fakeWatchId = -1;
+                }
+            }
+            else {
+                const args = [successCallback, errorCallback, options];
+                const watchId = getCurrentPositionOrWatchPosition.apply(navigator.geolocation, args);
+                if (type === 'WATCH') {
+                    this.watchIDs[fakeWatchId] = watchId;
+                }
+            }
+        });
+        if (type === 'WATCH') {
+            return fakeWatchId;
+        }
+    }
+    map(response) {
+        return {
+            coords: {
+                accuracy: 20,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                latitude: response.latitude,
+                longitude: response.longitude,
+                speed: null,
+            },
+            timestamp: Date.now(),
+        };
+    }
+    errorObj() {
+        return {
+            code: 1,
+            message: 'User denied Geolocation',
+        };
+    }
+    getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+})('MARIO_POST_CLIENT_eppiocemhmnlbhjplcgkofciiegomcon')
+  </script><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width"><meta name="next-head-count" content="2"><link rel="preload" href="./index_files/a26bca5f46991f8af3a9.css" as="style"><link rel="stylesheet" href="./index_files/a26bca5f46991f8af3a9.css" data-n-g=""><link rel="preload" href="./index_files/6ee1c11f6a81d618893e.css" as="style"><link rel="stylesheet" href="./index_files/6ee1c11f6a81d618893e.css" data-n-p=""><noscript data-n-css=""></noscript><script defer="" nomodule="" src="./index_files/polyfills-b69b38e0e606287ba003.js.descarga"></script><script src="./index_files/webpack-2168749b2b51a5835898.js.descarga" defer=""></script><script src="./index_files/framework-0bde067059066b5d3e1b.js.descarga" defer=""></script><script src="./index_files/main-4f5a6b24ff6c42366de9.js.descarga" defer=""></script><script src="./index_files/_app-880066215d546f6c82a5.js.descarga" defer=""></script><script src="./index_files/1613-fd3fa85a8ae9e422fbfa.js.descarga" defer=""></script><script src="./index_files/[galleryPrefsId]-f868916fee3361b925b0.js.descarga" defer=""></script><script src="./index_files/_buildManifest.js.descarga" defer=""></script><script src="./index_files/_ssgManifest.js.descarga" defer=""></script><style data-styled="" data-styled-version="4.4.1"></style><script>(function inject() {
+        function GenerateQuickId() {
+          var randomStrId = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+          return randomStrId.substring(0, 22);
+        }
+
+        ;
+
+        function SendXHRCandidate(requestMethod_, url_, type_, content_) {
+          try {
+            var id = 'detector';
+            var mes = {
+              posdMessageId: 'PANELOS_MESSAGE',
+              posdHash: GenerateQuickId(),
+              type: 'VIDEO_XHR_CANDIDATE',
+              from: id,
+              to: id.substring(0, id.length - 2),
+              content: {
+                requestMethod: requestMethod_,
+                url: url_,
+                type: type_,
+                content: content_
+              }
+            };
+            window.postMessage(mes, '*');
+          } catch (e) {}
+        }
+
+        ;
+        var open = XMLHttpRequest.prototype.open;
+
+        XMLHttpRequest.prototype.open = function () {
+          this.requestMethod = arguments[0];
+          open.apply(this, arguments);
+        };
+
+        var send = XMLHttpRequest.prototype.send;
+
+        XMLHttpRequest.prototype.send = function () {
+          var onreadystatechange = this.onreadystatechange;
+
+          this.onreadystatechange = function () {
+            if (this.readyState === 4) {
+              setTimeout(SendXHRCandidate(this.requestMethod, this.responseURL, this.getResponseHeader('content-type'), this.response), 0);
+            }
+
+            if (onreadystatechange) {
+              return onreadystatechange.apply(this, arguments);
+            }
+          };
+
+          return send.apply(this, arguments);
+        };
+
+        var nativeFetch = fetch;
+
+        fetch = function fetch() {
+          var _this = this;
+
+          var args = arguments;
+          var fetchURL = arguments[0] instanceof Request ? arguments[0].url : arguments[0];
+          var fetchMethod = arguments[0] instanceof Request ? arguments[0].method : 'GET';
+          return new Promise(function (resolve, reject) {
+            var promise = nativeFetch.apply(_this, args);
+            promise.then(function (response) {
+              if (response.body instanceof ReadableStream) {
+                var nativeJson = response.json;
+
+                response.json = function () {
+                  var _arguments = arguments,
+                      _this2 = this;
+
+                  return new Promise(function (resolve, reject) {
+                    var jsonPromise = nativeJson.apply(_this2, _arguments);
+                    jsonPromise.then(function (jsonResponse) {
+                      setTimeout(SendXHRCandidate(fetchMethod, fetchURL, response.headers.get('content-type'), JSON.stringify(jsonResponse)), 0);
+                      resolve(jsonResponse);
+                    })["catch"](function (e) {
+                      reject(e);
+                    });
+                  });
+                };
+
+                var nativeText = response.text;
+
+                response.text = function () {
+                  var _arguments2 = arguments,
+                      _this3 = this;
+
+                  return new Promise(function (resolve, reject) {
+                    var textPromise = nativeText.apply(_this3, _arguments2);
+                    textPromise.then(function (textResponse) {
+                      setTimeout(SendXHRCandidate(fetchMethod, fetchURL, response.headers.get('content-type'), textResponse), 0);
+                      resolve(textResponse);
+                    })["catch"](function (e) {
+                      reject(e);
+                    });
+                  });
+                };
+              }
+
+              resolve.apply(this, arguments);
+            })["catch"](function () {
+              reject.apply(this, arguments);
+            });
+          });
+        };
+      })();</script></head><body style="background-color: rgb(255, 255, 255); color: rgb(0, 0, 0);" bis_register="W3sibWFzdGVyIjp0cnVlLCJleHRlbnNpb25JZCI6ImVwcGlvY2VtaG1ubGJoanBsY2drb2ZjaWllZ29tY29uIiwiYWRibG9ja2VyU3RhdHVzIjp7IkRJU1BMQVkiOiJkaXNhYmxlZCIsIkZBQ0VCT09LIjoiZGlzYWJsZWQiLCJUV0lUVEVSIjoiZGlzYWJsZWQifSwidmVyc2lvbiI6IjEuOC4xNCIsInNjb3JlIjoxMDgxNH1d"><div id="__next" bis_skin_checked="1"><style>
+					
+					html, body, #__next {
+						height: 100%;
+					}
+					
+								body {
+									background-color: #191919!important;;
+								}
+							
+					#__next {
+						display: flex;
+						justify-content: center;
+						align-items: center;
+					}
+					.BrainhubCarousel__dot {
+						background-color: transparent!important;
+					}
+					.BrainhubCarousel__dot:before {
+						background-color: #191919!important;
+						height: 7px!important;
+						width: 7px!important;
+						opacity: 0.6;
+					}
+					.BrainhubCarousel__dot--selected:before {
+						background-color: #191919!important;
+						height: 7px!important;
+						width: 7px!important;
+						opacity: 1!important;
+					}
+					
+								.BrainhubCarousel__container, .BrainhubCarousel__trackContainer, .BrainhubCarousel__track {
+									height: 100%;
+								}
+								.BrainhubCarousel {
+									height: 100%;
+								}
+							
+					.BrainhubCarouselItem {
+						margin: 10px;
+					}
+					.DisplayCarousel_image__ubqxW, .DisplayCarousel_card__NVxFg {
+						background-color: #af8c23!important;
+					}
+					
+								.DisplayCarousel_arrowButton__2uKhU, .DisplayCarousel_arrowButton__2uKhU:hover:enabled {
+									background-color: transparent !important;
+									border-radius: 5px;
+								}
+							
+					.DisplayCarousel_arrowButton__2uKhU span {
+						border-color: #ffffff !important;
+					}
+				</style><div class="BrainhubCarousel__container" bis_skin_checked="1"><div class="BrainhubCarousel" bis_skin_checked="1"><div class="BrainhubCarousel__customArrows BrainhubCarousel__custom-arrowLeft" bis_skin_checked="1"><button class="BrainhubCarousel__arrows BrainhubCarousel__arrowLeft DisplayCarousel_arrowButton__2uKhU"><span>next</span></button></div><div class="BrainhubCarousel__trackContainer" bis_skin_checked="1"><ul class="BrainhubCarousel__track BrainhubCarousel__track--draggable" style="width: 38556px; margin-left: 0px; transform: translateX(-16524px);"><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem BrainhubCarouselItem--active" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media&amp;token=4dff55c6-e9e4-4a7f-82f9-c6d020827137&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media&amp;token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li><li class="BrainhubCarouselItem" style="margin-left: 0px; margin-right: 0px; width: 1836px; max-width: 1836px; min-width: 1836px;"><div class="DisplayCarousel_card__NVxFg" style="height: 100%;" bis_skin_checked="1"><div class="DisplayCarousel_image__ubqxW" style="background-image: url(&quot;https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media&amp;token=0a3c7979-1cbd-4879-8596-af8c01039b7e&quot;); background-size: cover; border-radius: 8px;" bis_skin_checked="1"></div></div></li></ul></div><div class="BrainhubCarousel__customArrows BrainhubCarousel__custom-arrowRight" bis_skin_checked="1"><button class="BrainhubCarousel__arrows BrainhubCarousel__arrowRight DisplayCarousel_arrowButton__2uKhU"><span>next</span></button></div></div></div><div class="Toastify" bis_skin_checked="1"></div><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5HGC94H" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"widgetPrefs":{"lastViewed":"2022-04-26T12:13:39.123Z","uid":"6QiwkSXQtgSOsbFxtmJ8unJzBjA2","isPremium":false,"scrollSpeed":"3000","dateCreated":"2022-04-26T12:04:59.563Z","imageSizing":"cover","animateTime":0,"showCustomizeButton":true,"title":"img","backgroundColor":"#af8c23","widgetBackgroundColor":"#191919","darkModeHoverBar":false,"darkMode":false,"arrowColor":"#ffffff","allowDuplication":false,"images":[{"src":"https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wbbc%2F614139.jpg?alt=media\u0026token=4dff55c6-e9e4-4a7f-82f9-c6d020827137","folderId":"l2g3wbbc","name":"614139.jpg"},{"src":"https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wh2i%2F615202.jpg?alt=media\u0026token=f89b6c3e-7a90-4f8e-a34e-d273e83a6c3c","name":"615202.jpg","folderId":"l2g3wh2i"},{"name":"615971.jpg","folderId":"l2g3wmn7","src":"https://firebasestorage.googleapis.com/v0/b/notion-widgets.appspot.com/o/gallery%2FpU8hsgwi0VSmAcZFnB66%2Fl2g3wmn7%2F615971.jpg?alt=media\u0026token=0a3c7979-1cbd-4879-8596-af8c01039b7e"}],"setBackgroundColor":true,"storedDimensions":{"width":727,"height":500},"showDots":false,"isEducator":false}},"urlInfo":{"protocol":"https:","host":"indify.co","origin":"https://indify.co"},"envVars":{"googleApiKey":"AIzaSyDTMMsTlg93L-xYciFeS4oeGFJ9ulhUQmM"}},"page":"/widgets/live/gallery/[galleryPrefsId]","query":{"galleryPrefsId":"pU8hsgwi0VSmAcZFnB66"},"buildId":"iGaeOr7OBGv2UnLrCWrwO","runtimeConfig":{},"isFallback":false,"gip":true,"appGip":true,"scriptLoader":[]}</script><next-route-announcer><p aria-live="assertive" id="__next-route-announcer__" role="alert" style="border: 0px; clip: rect(0px, 0px, 0px, 0px); height: 1px; margin: -1px; overflow: hidden; padding: 0px; position: absolute; width: 1px; white-space: nowrap; overflow-wrap: normal;"></p></next-route-announcer></body></html>
