@@ -1,2 +1,2 @@
-# Recursos
-Recursos graficos para mi pagina web creada con Notion..
+## Recursos
+- Recursos graficos y de codigo para mi pagina web creada con Notion..
